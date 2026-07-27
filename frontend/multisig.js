@@ -1,6 +1,41 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let state = null; // { paymentId, merchantAddress, tokenAddress, amount, signers, required, signatures: Set }
 
+// ── SSE integration ───────────────────────────────────────────────────────────
+/** @type {function|null} Active SSE cancel function */
+let _cancelSseSubscription = null;
+
+/**
+ * Lazily load lumenflow-sse.js and subscribe for payment status.
+ * @param {string} paymentId
+ */
+async function subscribeForPaymentSSE(paymentId) {
+  if (_cancelSseSubscription) { _cancelSseSubscription(); _cancelSseSubscription = null; }
+  try {
+    const { subscribePaymentStatus } = await import('./lumenflow-sse.js');
+    const network    = window.LUMENFLOW_NETWORK || 'testnet';
+    const contractId = window.LUMENFLOW_CONTRACT_ID || '';
+    if (!contractId) return; // Demo mode — no live contract to subscribe to
+    _cancelSseSubscription = subscribePaymentStatus({
+      orderId:   paymentId,
+      contractId,
+      network,
+      onSuccess: (event) => {
+        showExecuteAlert(`✔ Payment ${paymentId} confirmed on-chain.`, true);
+      },
+      onFailure: (event) => {
+        const code = event?.value?.error_code ? ` (code: ${event.value.error_code})` : '';
+        showExecuteAlert(`Payment ${paymentId} failed${code}.`, false);
+      },
+      onTimeout: () => {
+        console.warn('[lumenflow] SSE timeout for', paymentId);
+      },
+    });
+  } catch (e) {
+    console.warn('[lumenflow] SSE module unavailable, notifications disabled:', e.message);
+  }
+}
+
 // ── Signer management ─────────────────────────────────────────────────────────
 
 function addSigner() {
@@ -154,6 +189,9 @@ async function submitForm() {
   document.getElementById('form-panel').style.display = 'none';
   renderProgress();
   document.getElementById('progress-panel').style.display = 'block';
+
+  // Subscribe for real-time confirmation via Horizon SSE
+  subscribeForPaymentSSE(paymentId);
 }
 
 // ── Progress ──────────────────────────────────────────────────────────────────

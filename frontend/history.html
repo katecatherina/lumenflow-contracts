@@ -577,6 +577,14 @@
   window.addEventListener('popstate', initFromUrl);
   renderModeBanner();
   initFromUrl();
+
+  // ── Optional: Horizon SSE integration ──────────────────────────────────────
+  // To watch real-time payment status changes for a specific order in live mode,
+  // import lumenflow-sse.js and call subscribePaymentStatus with the order ID.
+  // Example:
+  //   import { subscribePaymentStatus } from './lumenflow-sse.js';
+  //   subscribePaymentStatus({ orderId: 'ORD-001', contractId: CONTRACT_ID, network: 'testnet', ... });
+  // For full implementation, see multisig.html and multisig.js.
 </script>
 
 </body>
